@@ -1,3 +1,8 @@
+# MIT License
+# Copyright (c) 2025 Samuel Plata
+# This file is part of the Neuronal Interaction Simulator and is licensed under the MIT License.
+
+
 #analysis/network_metrics.py
 import numpy as np
 import networkx as nx
