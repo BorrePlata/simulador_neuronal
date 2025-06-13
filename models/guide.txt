@@ -1,0 +1,1218 @@
+Importing Brian
+After installation, Brian is available in the brian2 package. By doing a wildcard import from this package, i.e.:
+
+from brian2 import *
+you will not only get access to the brian2 classes and functions, but also to everything in the pylab package, which includes the plotting functions from matplotlib and everything included in numpy/scipy (e.g. functions such as arange, linspace, etc.). Apart from this when you use the wildcard import, the builtin input function is overshadowed by the input module in the brian2 package. If you wish to use the builtin input function in your program after importing the brian2 package then you can explicitly import the input function again as shown below:
+
+from brian2 import *
+from builtins import input
+The following topics are not essential for beginners.
+
+
+Precise control over importing
+If you want to use a wildcard import from Brian, but don’t want to import all the additional symbols provided by pylab or don’t want to overshadow the builtin input function, you can use:
+
+from brian2.only import *
+Note that whenever you use something different from the most general from brian2 import * statement, you should be aware that Brian overwrites some numpy functions with their unit-aware equivalents (see Units). If you combine multiple wildcard imports, the Brian import should therefore be the last import. Similarly, you should not import and call overwritten numpy functions directly, e.g. by using import numpy as np followed by np.sin since this will not use the unit-aware versions. To make this easier, Brian provides a brian2.numpy_ package that provides access to everything in numpy but overwrites certain functions. If you prefer to use prefixed names, the recommended way of doing the imports is therefore:
+
+import brian2.numpy_ as np
+import brian2.only as br2
+Note that it is safe to use e.g. np.sin and numpy.sin after a from brian2 import *.
+
+Dependency checks
+Brian will check the dependency versions during import and raise an error for an outdated dependency. An outdated dependency does not necessarily mean that Brian cannot be run with it, it only means that Brian is untested on that version. If you want to force Brian to run despite the outdated dependency, set the core.outdated_dependency_error preference to False. Note that this cannot be done in a script, since you do not have access to the preferences before importing brian2. See Preferences for instructions how to set preferences in a file.
+
+
+Physical units
+Using units
+
+Removing units
+
+Temperatures
+
+Constants
+
+Importing units
+
+In-place operations on quantities
+
+Brian includes a system for physical units. The base units are defined by their standard SI unit names: amp/ampere, kilogram/kilogramme, second, metre/meter, mole/mol, kelvin, and candela. In addition to these base units, Brian defines a set of derived units: coulomb, farad, gram/gramme, hertz, joule, liter/ litre, molar, pascal, ohm, siemens, volt, watt, together with prefixed versions (e.g. msiemens = 0.001*siemens) using the prefixes p, n, u, m, k, M, G, T (two exceptions to this rule: kilogram is not defined with any additional prefixes, and metre and meter are additionaly defined with the “centi” prefix, i.e. cmetre/cmeter). For convenience, a couple of additional useful standard abbreviations such as cm (instead of cmetre/cmeter), nS (instead of nsiemens), ms (instead of msecond), Hz (instead of hertz), mM (instead of mmolar) are included. To avoid clashes with common variable names, no one-letter abbreviations are provided (e.g. you can use mV or nS, but not V or S).
+
+Using units
+You can generate a physical quantity by multiplying a scalar or vector value with its physical unit:
+
+tau = 20*ms
+print(tau)
+20. ms
+rates = [10, 20, 30]*Hz
+print(rates)
+[ 10.  20.  30.] Hz
+Brian will check the consistency of operations on units and raise an error for dimensionality mismatches:
+
+tau += 1  # ms? second?  
+Traceback (most recent call last):
+...
+DimensionMismatchError: Cannot calculate ... += 1, units do not match (units are second and 1).
+3*kgram + 3*amp   
+Traceback (most recent call last):
+...
+DimensionMismatchError: Cannot calculate 3. kg + 3. A, units do not match (units are kilogram and amp).
+Most Brian functions will also complain about non-specified or incorrect units:
+
+G = NeuronGroup(10, 'dv/dt = -v/tau: volt', dt=0.5)   
+Traceback (most recent call last):
+...
+DimensionMismatchError: Function "__init__" expected a quantitity with unit second for argument "dt" but got 0.5 (unit is 1).
+Numpy functions have been overwritten to correctly work with units (see the developer documentation for more details):
+
+print(mean(rates))
+20. Hz
+print(rates.repeat(2))
+[ 10.  10.  20.  20.  30.  30.] Hz
+Removing units
+There are various options to remove the units from a value (e.g. to use it with analysis functions that do not correctly work with units)
+
+Divide the value by its unit (most of the time the recommended option because it is clear about the scale)
+
+Transform it to a pure numpy array in the base unit by calling asarray (no copy) or array (copy)
+
+Directly get the unitless value of a state variable by appending an underscore to the name
+
+tau/ms
+20.0
+asarray(rates)
+array([ 10.,  20.,  30.])
+G = NeuronGroup(5, 'dv/dt = -v/tau: volt')
+print(G.v_[:])
+[ 0.  0.  0.  0.  0.]
+Temperatures
+Brian only supports temperatures defined in °K, using the provided kelvin unit object. Other conventions such as °C, or °F are not compatible with Brian’s unit system, because they cannot be expressed as a multiplicative scaling of the SI base unit kelvin (their zero point is different). However, in biological experiments and modeling, temperatures are typically reported in °C. How to use such temperatures depends on whether they are used as temperature differences or as absolute temperatures:
+
+temperature differences
+Their major use case is the correction of time constants for differences in temperatures based on the Q10 temperature coefficient. In this case, all temperatures can directly use kelvin even though the temperatures are reported in Celsius, since temperature differences in Celsius and Kelvin are identical.
+
+absolute temperatures
+Equations such as the Goldman–Hodgkin–Katz voltage equation have a factor that depends on the absolute temperature measured in Kelvin. To get this temperature from a temperature reported in °C, you can use the zero_celsius constant from the brian2.units.constants package (see below):
+
+from brian2.units.constants import zero_celsius
+
+celsius_temp = 27
+abs_temp = celsius_temp*kelvin + zero_celsius
+Note
+
+Earlier versions of Brian had a celsius unit which was in fact identical to kelvin. While this gave the correct results for temperature differences, it did not correctly work for absolute temperatures. To avoid confusion and possible misinterpretation, the celsius unit has therefore been removed.
+
+Constants
+The brian2.units.constants package provides a range of physical constants that can be useful for detailed biological models. Brian provides the following constants:
+
+Constant
+
+Symbol(s)
+
+Brian name
+
+Value
+
+Avogadro constant
+
+
+avogadro_constant
+
+
+Boltzmann constant
+
+
+boltzmann_constant
+
+
+Electric constant
+
+
+electric_constant
+
+
+Electron mass
+
+
+electron_mass
+
+
+Elementary charge
+
+
+elementary_charge
+
+
+Faraday constant
+
+
+faraday_constant
+
+
+Gas constant
+
+
+gas_constant
+
+
+Magnetic constant
+
+
+magnetic_constant
+
+
+Molar mass constant
+
+
+molar_mass_constant
+
+
+0°C
+
+zero_celsius
+
+
+Note that these constants are not imported by default, you will have to explicitly import them from brian2.units.constants. During the import, you can also give them shorter names using Python’s from ... import ... as ... syntax. For example, to calculate the 
+ 
+ factor that appears in the Goldman–Hodgkin–Katz voltage equation you can use:
+
+from brian2 import *
+from brian2.units.constants import zero_celsius, gas_constant as R, faraday_constant as F
+
+celsius_temp = 27
+T = celsius_temp*kelvin + zero_celsius
+factor = R*T/F
+The following topics are not essential for beginners.
+
+
+Importing units
+Brian generates standard names for units, combining the unit name (e.g. “siemens”) with a prefixes (e.g. “m”), and also generates squared and cubed versions by appending a number. For example, the units “msiemens”, “siemens2”, “usiemens3” are all predefined. You can import these units from the package brian2.units.allunits – accordingly, an from brian2.units.allunits import * will result in everything from Ylumen3 (cubed yotta lumen) to ymol (yocto mole) being imported.
+
+A better choice is normally to do from brian2.units import * or import everything from brian2 import * which only imports the units mentioned in the introductory paragraph (base units, derived units, and some standard abbreviations).
+
+In-place operations on quantities
+In-place operations on quantity arrays change the underlying array, in the same way as for standard numpy arrays. This means, that any other variables referencing the same object will be affected as well:
+
+q = [1, 2] * mV
+r = q
+q += 1*mV
+q
+array([ 2.,  3.]) * mvolt
+r
+array([ 2.,  3.]) * mvolt
+In contrast, scalar quantities will never change the underlying value but instead return a new value (in the same way as standard Python scalars):
+
+x = 1*mV
+y = x
+x *= 2
+x
+2. * mvolt
+y
+1. * mvolt
+
+
+Synapses
+For Brian 1 users
+
+Synapses is now the only class for defining synaptic interactions, it replaces Connection, STDP, etc. See the document Synapses (Brian 1 –> 2 conversion) for details how to convert Brian 1 code.
+
+Defining synaptic models
+
+Creating synapses
+
+Accessing synaptic variables
+
+Delays
+
+Monitoring synaptic variables
+
+Synaptic connection/weight matrices
+
+Creating synapses with the generator syntax
+
+Summed variables
+
+Creating multi-synapses
+
+Multiple pathways
+
+Numerical integration
+
+Technical notes
+
+Defining synaptic models
+The most simple synapse (adding a fixed amount to the target membrane potential on every spike) is described as follows:
+
+w = 1*mV
+S = Synapses(P, Q, on_pre='v += w')
+This defines a set of synapses between NeuronGroup P and NeuronGroup Q. If the target group is not specified, it is identical to the source group by default. The on_pre keyword defines what happens when a presynaptic spike arrives at a synapse. In this case, the constant w is added to variable v. Because v is not defined as a synaptic variable, it is assumed by default that it is a postsynaptic variable, defined in the target NeuronGroup Q. Note that this does not create synapses (see Creating Synapses), only the synaptic models.
+
+To define more complex models, models can be described as string equations, similar to the models specified in NeuronGroup:
+
+S = Synapses(P, Q, model='w : volt', on_pre='v += w')
+The above specifies a parameter w, i.e. a synapse-specific weight. Note that to avoid confusion, synaptic variables cannot have the same name as a pre- or post-synaptic variables.
+
+Synapses can also specify code that should be executed whenever a postsynaptic spike occurs (keyword on_post) and a fixed (pre-synaptic) delay for all synapses (keyword delay).
+
+As shown above, variable names that are not referring to a synaptic variable are automatically understood to be post-synaptic variables. To explicitly specify that a variable should be from a pre- or post-synaptic neuron, append the suffix _pre or _post. An alternative but equivalent formulation of the on_pre statement above would therefore be v_post += w.
+
+Model syntax
+The model follows exactly the same syntax as for NeuronGroup. There can be parameters (e.g. synaptic variable w above), but there can also be named subexpressions and differential equations, describing the dynamics of synaptic variables. In all cases, synaptic variables are created, one value per synapse.
+
+Brian also automatically defines a number of synaptic variables that can be used in equations, on_pre and on_post statements, as well as when assigning to other synaptic variables:
+
+i
+The index of the pre-synaptic source of a synapse.
+
+j
+The index of the post-synaptic target of a synapse.
+
+N
+The total number of synapses.
+
+N_incoming
+The total number of synapses connected to the post-synaptic target of a synapse.
+
+N_outgoing
+The total number of synapses outgoing from the pre-synaptic source of a synapse.
+
+lastupdate
+The last time this synapse has applied an on_pre or on_post statement. There is normally no need to refer to this variable explicitly, it is used to implement Event-driven updates (see below). It is only defined when event-driven equations are used.
+
+Event-driven updates
+By default, differential equations are integrated in a clock-driven fashion, as for a NeuronGroup. This is potentially very time consuming, because all synapses are updated at every timestep and Brian will therefore emit a warning. If you are sure about integrating the equations at every timestep (e.g. because you want to record the values continuously), then you should specify the flag (clock-driven), which will silence the warning. To ask Brian 2 to simulate differential equations in an event-driven fashion use the flag (event-driven). A typical example is pre- and postsynaptic traces in STDP:
+
+model='''w:1
+         dApre/dt=-Apre/taupre : 1 (event-driven)
+         dApost/dt=-Apost/taupost : 1 (event-driven)'''
+Here, Brian updates the value of Apre for a given synapse only when this synapse receives a spike, whether it is presynaptic or postsynaptic. More precisely, the variables are updated every time either the on_pre or on_post code is called for the synapse, so that the values are always up to date when these codes are executed.
+
+Automatic event-driven updates are only possible for a subset of equations, in particular for one-dimensional linear equations. These equations must also be independent of the other ones, that is, a differential equation that is not event-driven cannot depend on an event-driven equation (since the values are not continuously updated). In other cases, the user can write event-driven code explicitly in the update codes (see below).
+
+Pre and post codes
+The on_pre code is executed at each synapse receiving a presynaptic spike. For example:
+
+on_pre='v+=w'
+adds the value of synaptic variable w to postsynaptic variable v. Any sort of code can be executed. For example, the following code defines stochastic synapses, with a synaptic weight w and transmission probability p:
+
+S=Synapses(neuron_input,neurons,model="""w : 1
+                              p : 1""",
+                         on_pre="v+=w*(rand()<p)")
+The code means that w is added to v with probability p. The code may also include multiple lines.
+
+Similarly, the on_post code is executed at each synapse where the postsynaptic neuron has fired a spike.
+
+Creating synapses
+Creating a Synapses instance does not create synapses, it only specifies their dynamics. The following command creates a synapse between neuron 5 in the source group and neuron 10 in the target group:
+
+S.connect(i=5, j=10)
+Multiple synaptic connections can be created in a single statement:
+
+S.connect()
+S.connect(i=[1, 2], j=[3, 4])
+S.connect(i=numpy.arange(10), j=1)
+The first statement connects all neuron pairs. The second statement creates synapses between neurons 1 and 3, and between neurons 2 and 4. The third statement creates synapses between the first ten neurons in the source group and neuron 1 in the target group.
+
+Conditional
+One can also create synapses by giving (as a string) the condition for a pair of neurons i and j to be connected by a synapse, e.g. you could connect neurons that are not very far apart with:
+
+S.connect(condition='abs(i-j)<=5')
+The string expressions can also refer to pre- or postsynaptic variables. This can be useful for example for spatial connectivity: assuming that the pre- and postsynaptic groups have user-defined parameters x and y, storing their location, the following statement connects all cells in a 250 um radius:
+
+S.connect(condition='sqrt((x_pre-x_post)**2 + (y_pre-y_post)**2) < 250*umeter')
+Probabilistic
+Synapse creation can also be probabilistic by providing a p argument, providing the connection probability for each pair of synapses:
+
+S.connect(p=0.1)
+This connects all neuron pairs with a probability of 10%. Probabilities can also be given as expressions, for example to implement a connection probability that depends on distance:
+
+S.connect(condition='i != j',
+          p='p_max*exp(-(x_pre-x_post)**2+(y_pre-y_post)**2 / (2*(125*umeter)**2))')
+If this statement is applied to a Synapses object that connects a group to itself, it prevents self-connections (i != j) and connects cells with a probability that is modulated according to a 2-dimensional Gaussian of the distance between the cells computed from the user-defined parameters x and y, storing their location.
+
+One-to-one
+You can specify a mapping from i to any function f(i), e.g. the simplest way to give a 1-to-1 connection would be:
+
+S.connect(j='i')
+This mapping can also use a restricting condition with if, e.g. to connect neurons 0, 2, 4, 6, … to neurons 0, 1, 2, 3, … you could write:
+
+S.connect(j='int(i/2) if i % 2 == 0')
+The connections above describe the target indices j as a function of the source indices i. You can also apply the syntax in the other direction, i.e. describe source indices i as a function of target indices j. For a 1-to-1 connection, this does not change anything in most cases:
+
+S.connect(i='j')
+Note that there is a subtle difference between the two descriptions if the two groups do not have the same size: if the source group has fewer neurons than the target group, then using j='i' is possible (there is a target neuron for each source neuron), but i='j' would raise an error; the opposite is true if the source group is bigger than the target group.
+
+The second example from above (neurons 0, 2, 4, … to neurons 0, 1, 2, …) can be adapted for the other direction, as well, and is possibly more intuitive in this case:
+
+S.connect(i='j*2')
+Accessing synaptic variables
+Synaptic variables can be accessed in a similar way as NeuronGroup variables. They can be indexed with two indexes, corresponding to the indexes of pre and postsynaptic neurons, or with string expressions (referring to i and j as the pre-/post-synaptic indices, or to other state variables of the synapse or the connected neurons). Note that setting a synaptic variable always refers to the synapses that currently exist, i.e. you have to set them after the relevant Synapses.connect call.
+
+Here are a few examples:
+
+S.w[2, 5] = 1*nS
+S.w[1, :] = 2*nS
+S.w = 1*nS # all synapses assigned
+S.w[2, 3] = (1*nS, 2*nS)
+S.w[group1, group2] = "(1+cos(i-j))*2*nS"
+S.w[:, :] = 'rand()*nS'
+S.w['abs(x_pre-x_post) < 250*umetre'] = 1*nS
+Assignments can also refer to pre-defined variables, e.g. to normalize synaptic weights. For example, after the following assignment the sum of weights of all synapses that a neuron receives is identical to 1, regardless of the number of synapses it receives:
+
+syn.w = '1.0/N_incoming'
+Note that it is also possible to index synaptic variables with a single index (integer, slice, or array), but in this case synaptic indices have to be provided.
+
+The N_incoming and N_outgoing variables give access to the total number of incoming/outgoing synapses for a neuron, but this access is given for each synapse. This is necessary to apply it to individual synapses as in the statement to normalize synaptic weights mentioned above. To access these values per neuron instead, N_incoming_post and N_outgoing_pre can be used. Note that synaptic equations or on_pre/on_post statements should always refer to N_incoming and N_outgoing without pre/post suffix.
+
+Here’s a little example illustrating the use of these variables:
+
+group1 = NeuronGroup(3, '')
+group2 = NeuronGroup(3, '')
+syn = Synapses(group1, group2)
+syn.connect(i=[0, 0, 1, 2], j=[1, 2, 2, 2])
+print(syn.N_outgoing_pre)  # for each presynaptic neuron
+[2 1 1]
+print(syn.N_outgoing[:])  # same numbers, but indexed by synapse
+[2 2 1 1]
+print(syn.N_incoming_post)
+[0 1 3]
+print(syn.N_incoming[:])
+[1 3 3 3]
+Note that N_incoming_post and N_outgoing_pre can contain zeros for neurons that do not have any incoming respectively outgoing synapses. In contrast, N_incoming and N_outgoing will never contain zeros, because unconnected neurons are not represented in the list of synapses.
+
+Delays
+There is a special synaptic variable that is automatically created: delay. It is the propagation delay from the presynaptic neuron to the synapse, i.e., the presynaptic delay. This is just a convenience syntax for accessing the delay stored in the presynaptic pathway: pre.delay. When there is a postsynaptic code (keyword post), the delay of the postsynaptic pathway can be accessed as post.delay.
+
+The delay variable(s) can be set and accessed in the same way as other synaptic variables. The same semantics as for other synaptic variables apply, which means in particular that the delay is only set for the synapses that have been already created with Synapses.connect. If you want to set a global delay for all synapses of a Synapses object, you can directly specify that delay as part of the Synapses initializer:
+
+synapses = Synapses(sources, targets, '...', on_pre='...', delay=1*ms)
+When you use this syntax, you can still change the delay afterwards by setting synapses.delay, but you can only set it to another scalar value. If you need different delays across synapses, do not use this syntax but instead set the delay variable as any other synaptic variable (see above).
+
+Monitoring synaptic variables
+A StateMonitor object can be used to monitor synaptic variables. For example, the following statement creates a monitor for variable w for the synapses 0 and 1:
+
+M = StateMonitor(S, 'w', record=[0,1])
+Note that these are synapse indices, not neuron indices. More convenient is to directly index the Synapses object, Brian will automatically calculate the indices for you in this case:
+
+M = StateMonitor(S, 'w', record=S[0, :])  # all synapses originating from neuron 0
+M = StateMonitor(S, 'w', record=S['i!=j'])  # all synapses excluding autapses
+M = StateMonitor(S, 'w', record=S['w>0'])  # all synapses with non-zero weights (at this time)
+You can also record a synaptic variable for all synapses by passing record=True.
+
+The recorded traces can then be accessed in the usual way, again with the possibility to index the Synapses object:
+
+plot(M.t / ms, M[S[0]].w / nS)  # first synapse
+plot(M.t / ms, M[S[0, :]].w / nS)  # all synapses originating from neuron 0
+plot(M.t / ms, M[S['w>0*nS']].w / nS)  # all synapses with non-zero weights (at this time)
+Note (for users of Brian’s advanced standalone mode only): the use of the Synapses object for indexing and record=True only work in the default runtime modes. In standalone mode (see Standalone code generation), the synapses have not yet been created at this point, so Brian cannot calculate the indices.
+
+The following topics are not essential for beginners.
+
+
+Synaptic connection/weight matrices
+Brian does not directly support specifying synapses by using a matrix, you always have to use a “sparse” format, where each connection is defined by its source and target indices. However, you can easily convert between the two formats. Assuming you have a connection matrix 
+ of size 
+, where 
+ is the number of presynaptic cells, and 
+ the number of postsynaptic cells, with each entry being 1 for a connection, and 0 otherwise. You can convert this matrix to arrays of source and target indices, which you can then provide to Brian’s connect function:
+
+C = ...  # The connection matrix as a numpy array of 0's and 1's
+sources, targets = C.nonzero()
+synapses = Synapses(...)
+synapses.connect(i=sources, j=targets)
+Similarly, you can transform the flat array of values stored in a synapse into a matrix form. For example, to get a matrix with all the weight values w, with NaN values where no synapse exists:
+
+synapses = Synapses(source_group, target_group,
+                    '''...
+                       w : 1  # synaptic weight''', ...)
+# ...
+# Run e.g. a simulation with plasticity that changes the weights
+run(...)
+# Create a matrix to store the weights and fill it with NaN
+W = np.full((len(source_group), len(target_group)), np.nan)
+# Insert the values from the Synapses object
+W[synapses.i[:], synapses.j[:]] = synapses.w[:]
+You can also set synapses given a fully connected weight matrix (as a 2D numpy array W):
+
+synapses.w[:] = W.flatten()
+This works because the internal ordering of synapses is exactly the same as for a flattened matrix.
+
+Creating synapses with the generator syntax
+The most general way of specifying a connection is using the generator syntax, e.g. to connect neuron i to all neurons j with 0<=j<=i:
+
+S.connect(j='k for k in range(0, i+1)')
+There are several parts to this syntax. The general form is:
+
+j='EXPR for VAR in RANGE if COND'
+or:
+
+i='EXPR for VAR in RANGE if COND'
+Here EXPR can be any integer-valued expression. VAR is the name of the iteration variable (any name you like can be specified here). The if COND part is optional and lets you give an additional condition that has to be true for the synapse to be created. Finally, RANGE can be either:
+
+a Python range, e.g. range(N) is the integers from 0 to N-1, range(A, B) is the integers from A to B-1, range(low, high, step) is the integers from low to high-1 with steps of size step;
+
+a random sample sample(N, p=0.1) gives a random sample of integers from 0 to N-1 with 10% probability of each integer appearing in the sample. This can have extra arguments like range, e.g. sample(low, high, step, p=0.1) will give each integer in range(low, high, step) with probability 10%;
+
+a random sample sample(N, size=10) with a fixed size, in this example 10 values chosen (without replacement) from the integers from 0 to N-1. As for the random sample based on a probability, the sample expression can take additional arguments to sample from a restricted range.
+
+If you try to create an invalid synapse (i.e. connecting neurons that are outside the correct range) then you will get an error, e.g. you might like to try to do this to connect each neuron to its neighbours:
+
+S.connect(j='i+(-1)**k for k in range(2)')
+However this won’t work at for i=0 it gives j=-1 which is invalid. There is an option to just skip any synapses that are outside the valid range:
+
+S.connect(j='i+(-1)**k for k in range(2)', skip_if_invalid=True)
+You can also use this argument to deal with random samples of incorrect size, i.e. a negative size or a size bigger than the total population size. With skip_if_invalid=True, no error will be raised and a size of 0 or the population size will be used.
+
+Summed variables
+In many cases, the postsynaptic neuron has a variable that represents a sum of variables over all its synapses. This is called a “summed variable”. An example is nonlinear synapses (e.g. NMDA):
+
+neurons = NeuronGroup(1, model='''dv/dt=(gtot-v)/(10*ms) : 1
+                                  gtot : 1''')
+S = Synapses(neuron_input, neurons,
+             model='''dg/dt=-a*g+b*x*(1-g) : 1
+                      gtot_post = g : 1  (summed)
+                      dx/dt=-c*x : 1
+                      w : 1 # synaptic weight''', on_pre='x+=w')
+Here, each synapse has a conductance g with nonlinear dynamics. The neuron’s total conductance is gtot. The line stating gtot_post = g : 1  (summed) specifies the link between the two: gtot in the postsynaptic group is the summer over all variables g of the corresponding synapses. What happens during the simulation is that at each time step, presynaptic conductances are summed for each neuron and the result is copied to the variable gtot. Another example is gap junctions:
+
+neurons = NeuronGroup(N, model='''dv/dt=(v0-v+Igap)/tau : 1
+                                  Igap : 1''')
+S=Synapses(neurons,model='''w:1 # gap junction conductance
+                            Igap_post = w*(v_pre-v_post): 1 (summed)''')
+Here, Igap is the total gap junction current received by the postsynaptic neuron.
+
+Note that you cannot target the same post-synaptic variable from more than one Synapses object. To work around this restriction, use multiple post-synaptic variables that ar then summed up:
+
+neurons = NeuronGroup(1, model='''dv/dt=(gtot-v)/(10*ms) : 1
+                                  gtot = gtot1 + gtot2: 1
+                                  gtot1 : 1
+                                  gtot2 : 1''')
+S1 = Synapses(neuron_input, neurons,
+              model='''dg/dt=-a1*g+b1*x*(1-g) : 1
+                       gtot1_post = g : 1  (summed)
+                       dx/dt=-c1*x : 1
+                       w : 1 # synaptic weight
+                    ''', on_pre='x+=w')
+S2 = Synapses(neuron_input, neurons,
+              model='''dg/dt=-a2*g+b2*x*(1-g) : 1
+                       gtot2_post = g : 1  (summed)
+                       dx/dt=-c2*x : 1
+                       w : 1 # synaptic weight
+                    ''', on_pre='x+=w')
+Creating multi-synapses
+It is also possible to create several synapses for a given pair of neurons:
+
+S.connect(i=numpy.arange(10), j=1, n=3)
+This is useful for example if one wants to have multiple synapses with different delays. To distinguish multiple variables connecting the same pair of neurons in synaptic expressions and statements, you can create a variable storing the synapse index with the multisynaptic_index keyword:
+
+syn = Synapses(source_group, target_group, model='w : 1', on_pre='v += w',
+               multisynaptic_index='synapse_number')
+syn.connect(i=numpy.arange(10), j=1, n=3)
+syn.delay = '1*ms + synapse_number*2*ms'
+This index can then be used to set/get synapse-specific values:
+
+S.delay = '(synapse_number + 1)*ms)'  # Set delays between 1 and 10ms
+S.w['synapse_number<5'] = 0.5
+S.w['synapse_number>=5'] = 1
+It also enables three-dimensional indexing, the following statement has the same effect as the last one above:
+
+S.w[:, :, 5:] = 1
+Multiple pathways
+It is possible to have multiple pathways with different update codes from the same presynaptic neuron group. This may be interesting in cases when different operations must be applied at different times for the same presynaptic spike, e.g. for a STDP rule that shifted in time. To do this, specify a dictionary of pathway names and codes:
+
+on_pre={'pre_transmission': 'ge+=w',
+        'pre_plasticity': '''w=clip(w+Apost,0,inf)
+                             Apre+=dApre'''}
+This creates two pathways with the given names (in fact, specifying on_pre=code is just a shorter syntax for on_pre={'pre': code}) through which the delay variables can be accessed. The following statement, for example, sets the delay of the synapse between the first neurons of the source and target groups in the pre_plasticity pathway:
+
+S.pre_plasticity.delay[0,0] = 3*ms
+As mentioned above, pre pathways are generally executed before post pathways. The order of execution of several pre (or post) pathways with the same delay is however arbitrary, and simply based on the alphabetical ordering of their names (i.e. pre_plasticity will be executed before pre_transmission). To explicitly specify the order, set the order attribute of the pathway, e.g.:
+
+S.pre_transmission.order = -2
+will make sure that the pre_transmission code is executed before the pre_plasticity code in each time step.
+
+Multiple pathways can also be useful for abstract models of synaptic currents, e.g. modelling them as rectangular currents:
+
+synapses = Synapses(...,
+                    on_pre={'up': 'I_syn_post += 1*nA',
+                            'down': 'I_syn_post -= 1*nA'},
+                    delay={'up': 0*ms, 'down': 5*ms}  # 5ms-wide rectangular current
+                    )
+Numerical integration
+Differential equation flags
+For the integration of differential equations, one can use the same keywords as for NeuronGroup.
+
+Note
+
+Declaring a subexpression as (constant over dt) means that it will be evaluated each timestep for all synapses, potentially a very costly operation.
+
+Explicit event-driven updates
+As mentioned above, it is possible to write event-driven update code for the synaptic variables. This can also be done manually, by defining the variable lastupdate and referring to the predefined variable t (current time). Here’s an example for short-term plasticity:
+
+S=Synapses(neuron_input,neuron,
+           model='''x : 1
+                    u : 1
+                    w : 1
+                    lastupdate : second''',
+           on_pre='''u=U+(u-U)*exp(-(t-lastupdate)/tauf)
+                  x=1+(x-1)*exp(-(t-lastupdate)/taud)
+                  i+=w*u*x
+                  x*=(1-u)
+                  u+=U*(1-u)
+                  lastupdate = t''')
+By default, the pre pathway is executed before the post pathway (both are executed in the 'synapses' scheduling slot, but the pre pathway has the order attribute -1, wheras the post pathway has order 1. See Scheduling for more details).
+
+Note that using the automatic event-driven approach from above is usually preferable, see Example: example_1_COBA for an event-driven implementation of short-term plasticity.
+
+Technical notes
+How connection arguments are interpreted
+If conditions for connecting neurons are combined with both the n (number of synapses to create) and the p (probability of a synapse) keywords, they are interpreted in the following way:
+
+For every pair i, j:
+if condition(i, j) is fulfilled:
+Evaluate p(i, j)
+If uniform random number between 0 and 1 < p(i, j):
+Create n(i, j) synapses for (i, j)
+With the generator syntax j='EXPR for VAR in RANGE if COND' (where the RANGE can be a full range or a random sample as described above), the interpretation is:
+
+For every i:
+for every VAR in RANGE:
+j = EXPR
+if COND:
+Create n(i, j) synapses for (i, j)
+Note that the arguments in RANGE can only depend on i and the values of presynaptic variables. Similarly, the expression for j, EXPR can depend on i, presynaptic variables, and on the iteration variable VAR. The condition COND can depend on anything (presynaptic and postsynaptic variables).
+
+The generator syntax expressing i as a function of j is interpreted in the same way:
+
+For every j:
+for every VAR in RANGE:
+i = EXPR
+if COND:
+Create n(i, j) synapses for (i, j)
+Here, RANGE can only depend on j and postsynaptic variables, and EXPR can only depend on j, postsynaptic variables, and on the iteration variable VAR.
+
+With the 1-to-1 mapping syntax j='EXPR' the interpretation is:
+
+For every i:
+j = EXPR
+Create n(i, j) synapses for (i, j)
+And finally, i='EXPR' is interpreted as:
+
+For every j:
+i = EXPR
+Create n(i, j) synapses for (i, j)
+Efficiency considerations
+If you are connecting a single pair of neurons, the direct form connect(i=5, j=10) is the most efficient. However, if you are connecting a number of neurons, it will usually be more efficient to construct an array of i and j values and have a single connect(i=i, j=j) call.
+
+For large connections, you should use one of the string based syntaxes where possible as this will generate compiled low-level code that will be typically much faster than equivalent Python code.
+
+If you are expecting a majority of pairs of neurons to be connected, then using the condition-based syntax is optimal, e.g. connect(condition='i!=j'). However, if relatively few neurons are being connected then the 1-to-1 mapping or generator syntax will be better. For 1-to-1, connect(j='i') will always be faster than connect(condition='i==j') because the latter has to evaluate all N**2 pairs (i, j) and check if the condition is true, whereas the former only has to do O(N) operations.
+
+One tricky problem is how to efficiently generate connectivity with a probability p(i, j) that depends on both i and j, since this requires N*N computations even if the expected number of synapses is proportional to N. Some tricks for getting around this are shown in Example: efficient_gaussian_connectivity.
+
+Input stimuli
+For Brian 1 users
+
+See the document Inputs (Brian 1 –> 2 conversion) for details how to convert Brian 1 code.
+
+Poisson inputs
+
+Spike generation
+
+Explicit equations
+
+Timed arrays
+
+Regular operations
+
+More on Poisson inputs
+
+Arbitrary Python code (network operations)
+
+There are various ways of providing “external” input to a network.
+
+Poisson inputs
+For generating spikes according to a Poisson point process, PoissonGroup can be used, e.g.:
+
+P = PoissonGroup(100, np.arange(100)*Hz + 10*Hz)
+G = NeuronGroup(100, 'dv/dt = -v / (10*ms) : 1')
+S = Synapses(P, G, on_pre='v+=0.1')
+S.connect(j='i')
+See More on Poisson inputs below for further information.
+
+For simulations where the individually generated spikes are just used as a source of input to a neuron, the PoissonInput class provides a more efficient alternative: see Efficient Poisson inputs via PoissonInput below for details.
+
+Spike generation
+You can also generate an explicit list of spikes given via arrays using SpikeGeneratorGroup. This object behaves just like a NeuronGroup in that you can connect it to other groups via a Synapses object, but you specify three bits of information: N the number of neurons in the group; indices an array of the indices of the neurons that will fire; and times an array of the same length as indices with the times that the neurons will fire a spike. The indices and times arrays are matching, so for example indices=[0,2,1] and times=[1*ms,2*ms,3*ms] means that neuron 0 fires at time 1 ms, neuron 2 fires at 2 ms and neuron 1 fires at 3 ms. Example use:
+
+indices = array([0, 2, 1])
+times = array([1, 2, 3])*ms
+G = SpikeGeneratorGroup(3, indices, times)
+The spikes that will be generated by SpikeGeneratorGroup can be changed between runs with the set_spikes method. This can be useful if the input to a system should depend on its previous output or when running multiple trials with different input:
+
+inp = SpikeGeneratorGroup(N, indices, times)
+G = NeuronGroup(N, '...')
+feedforward = Synapses(inp, G, '...', on_pre='...')
+feedforward.connect(j='i')
+recurrent = Synapses(G, G, '...', on_pre='...')
+recurrent.connect('i!=j')
+spike_mon = SpikeMonitor(G)
+# ...
+run(runtime)
+# Replay the previous output of group G as input into the group
+inp.set_spikes(spike_mon.i, spike_mon.t + runtime)
+run(runtime)
+Explicit equations
+If the input can be explicitly expressed as a function of time (e.g. a sinusoidal input current), then its description can be directly included in the equations of the respective group:
+
+G = NeuronGroup(100, '''dv/dt = (-v + I)/(10*ms) : 1
+                        rates : Hz  # each neuron's input has a different rate
+                        size : 1  # and a different amplitude
+                        I = size*sin(2*pi*rates*t) : 1''')
+G.rates = '10*Hz + i*Hz'
+G.size = '(100-i)/100. + 0.1'
+Timed arrays
+If the time dependence of the input cannot be expressed in the equations in the way shown above, it is possible to create a TimedArray. This acts as a function of time where the values at given time points are given explicitly. This can be especially useful to describe non-continuous stimulation. For example, the following code defines a TimedArray where stimulus blocks consist of a constant current of random strength for 30ms, followed by no stimulus for 20ms. Note that in this particular example, numerical integration can use exact methods, since it can assume that the TimedArray is a constant function of time during a single integration time step.
+
+Note
+
+The semantics of TimedArray changed slightly compared to Brian 1: for TimedArray([x1, x2, ...], dt=my_dt), the value x1 will be returned for all 0<=t<my_dt, x2 for my_dt<=t<2*my_dt etc., whereas Brian1 returned x1 for 0<=t<0.5*my_dt, x2 for 0.5*my_dt<=t<1.5*my_dt, etc.
+
+stimulus = TimedArray(np.hstack([[c, c, c, 0, 0]
+                                 for c in np.random.rand(1000)]),
+                                dt=10*ms)
+G = NeuronGroup(100, 'dv/dt = (-v + stimulus(t))/(10*ms) : 1',
+                threshold='v>1', reset='v=0')
+G.v = '0.5*rand()'  # different initial values for the neurons
+TimedArray can take a one-dimensional value array (as above) and therefore return the same value for all neurons or it can take a two-dimensional array with time as the first and (neuron/synapse/…-)index as the second dimension.
+
+In the following, this is used to implement shared noise between neurons, all the “even neurons” get the first noise instantiation, all the “odd neurons” get the second:
+
+runtime = 1*second
+stimulus = TimedArray(np.random.rand(int(runtime/defaultclock.dt), 2),
+                      dt=defaultclock.dt)
+G = NeuronGroup(100, 'dv/dt = (-v + stimulus(t, i % 2))/(10*ms) : 1',
+                threshold='v>1', reset='v=0')
+Regular operations
+An alternative to specifying a stimulus in advance is to run explicitly specified code at certain points during a simulation. This can be achieved with run_regularly(). One can think of these statements as equivalent to reset statements but executed unconditionally (i.e. for all neurons) and possibly on a different clock than the rest of the group. The following code changes the stimulus strength of half of the neurons (randomly chosen) to a new random value every 50ms. Note that the statement uses logical expressions to have the values only updated for the chosen subset of neurons (where the newly introduced auxiliary variable change equals 1):
+
+G = NeuronGroup(100, '''dv/dt = (-v + I)/(10*ms) : 1
+                        I : 1  # one stimulus per neuron''')
+G.run_regularly('''change = int(rand() < 0.5)
+                   I = change*(rand()*2) + (1-change)*I''',
+                dt=50*ms)
+The following topics are not essential for beginners.
+
+
+More on Poisson inputs
+Setting rates for Poisson inputs
+PoissonGroup takes either a constant rate, an array of rates (one rate per neuron, as in the example above), or a string expression evaluating to a rate as an argument.
+
+If the given value for rates is a constant, then using PoissonGroup(N, rates) is equivalent to:
+
+NeuronGroup(N, 'rates : Hz', threshold='rand()<rates*dt')
+and setting the group’s rates attribute.
+
+If rates is a string, then this is equivalent to:
+
+NeuronGroup(N, 'rates = ... : Hz', threshold='rand()<rates*dt')
+with the respective expression for the rates. This expression will be evaluated at every time step and therefore allows the use of time-dependent rates, i.e. inhomogeneous Poisson processes. For example, the following code (see also Timed arrays) uses a TimedArray to define the rates of a PoissonGroup as a function of time, resulting in five 100ms blocks of 100 Hz stimulation, followed by 100ms of silence:
+
+stimulus = TimedArray(np.tile([100., 0.], 5)*Hz, dt=100.*ms)
+P = PoissonGroup(1, rates='stimulus(t)')
+Note that, as can be seen in its equivalent NeuronGroup formulation, a PoissonGroup does not work for high rates where more than one spike might fall into a single timestep. Use several units with lower rates in this case (e.g. use PoissonGroup(10, 1000*Hz) instead of PoissonGroup(1, 10000*Hz)).
+
+Efficient Poisson inputs via PoissonInput
+For simulations where the PoissonGroup is just used as a source of input to a neuron (i.e., the individually generated spikes are not important, just their impact on the target cell), the PoissonInput class provides a more efficient alternative: instead of generating spikes, PoissonInput directly updates a target variable based on the sum of independent Poisson processes:
+
+G = NeuronGroup(100, 'dv/dt = -v / (10*ms) : 1')
+P = PoissonInput(G, 'v', 100, 100*Hz, weight=0.1)
+Each input of the PoissonInput is connected to all the neurons of the target NeuronGroup but each neuron receives independent realizations of the Poisson spike trains. Note that the PoissonInput class is however more restrictive than PoissonGroup, it only allows for a constant rate across all neurons (but you can create several PoissonInput objects, targeting different subgroups). It internally uses BinomialFunction which will draw a random number each time step, either from a binomial distribution or from a normal distribution as an approximation to the binomial distribution if 
+ , where 
+ is the number of inputs and 
+ the spiking probability for a single input.
+
+Arbitrary Python code (network operations)
+If none of the above techniques is general enough to fulfill the requirements of a simulation, Brian allows you to write a NetworkOperation, an arbitrary Python function that is executed every time step (possible on a different clock than the rest of the simulation). This function can do arbitrary operations, use conditional statements etc. and it will be executed as it is (i.e. as pure Python code even if cython code generation is active). Note that one cannot use network operations in combination with the C++ standalone mode. Network operations are particularly useful when some condition or calculation depends on operations across neurons, which is currently not possible to express in abstract code. The following code switches input on for a randomly chosen single neuron every 50 ms:
+
+G = NeuronGroup(10, '''dv/dt = (-v + active*I)/(10*ms) : 1
+                       I = sin(2*pi*100*Hz*t) : 1 (shared) #single input
+                       active : 1  # will be set in the network operation''')
+@network_operation(dt=50*ms)
+def update_active():
+    index = np.random.randint(10)  # index for the active neuron
+    G.active_ = 0  # the underscore switches off unit checking
+    G.active_[index] = 1
+Note that the network operation (in the above example: update_active) has to be included in the Network object if one is constructed explicitly.
+
+Only functions with zero or one arguments can be used as a NetworkOperation. If the function has one argument then it will be passed the current time t:
+
+@network_operation(dt=1*ms)
+def update_input(t):
+    if t>50*ms and t<100*ms:
+        pass # do something
+Note that this is preferable to accessing defaultclock.t from within the function – if the network operation is not running on the defaultclock itself, then that value is not guaranteed to be correct.
+
+Instance methods can be used as network operations as well, however in this case they have to be constructed explicitly, the network_operation() decorator cannot be used:
+
+class Simulation(object):
+    def __init__(self, data):
+        self.data = data
+        self.group = NeuronGroup(...)
+        self.network_op = NetworkOperation(self.update_func, dt=10*ms)
+        self.network = Network(self.group, self.network_op)
+
+    def update_func(self):
+        pass # do something
+
+    def run(self, runtime):
+        self.network.run(runtime)
+Multicompartment models
+For Brian 1 users
+
+See the document Multicompartmental models (Brian 1 –> 2 conversion) for details how to convert Brian 1 code.
+
+It is possible to create neuron models with a spatially extended morphology, using the SpatialNeuron class. A SpatialNeuron is a single neuron with many compartments. Essentially, it works as a NeuronGroup where elements are compartments instead of neurons.
+
+A SpatialNeuron is specified by a morphology (see Creating a neuron morphology) and a set of equations for transmembrane currents (see Creating a spatially extended neuron).
+
+Creating a neuron morphology
+Schematic morphologies
+Morphologies can be created combining geometrical objects:
+
+soma = Soma(diameter=30*um)
+cylinder = Cylinder(diameter=1*um, length=100*um, n=10)
+The first statement creates a single iso-potential compartment (i.e. with no axial resistance within the compartment), with its area calculated as the area of a sphere with the given diameter. The second one specifies a cylinder consisting of 10 compartments with identical diameter and the given total length.
+
+For more precise control over the geometry, you can specify the length and diameter of each individual compartment, including the diameter at the start of the section (i.e. for n compartments: n length and n+1 diameter values) in a Section object:
+
+section = Section(diameter=[6, 5, 4, 3, 2, 1]*um, length=[10, 10, 10, 5, 5]*um, n=5)
+The individual compartments are modeled as truncated cones, changing the diameter linearly between the given diameters over the length of the compartment. Note that the diameter argument specifies the values at the nodes between the compartments, but accessing the diameter attribute of a Morphology object will return the diameter at the center of the compartment (see the note below).
+
+The following table summarizes the different options to create schematic morphologies (the black compartment before the start of the section represents the parent compartment with diameter 15 μm, not specified in the code below):
+
+Example
+
+Soma
+
+# Soma always has a single compartment
+Soma(diameter=30*um)
+../_images/soma.svg
+Cylinder
+
+# Each compartment has fixed length and diameter
+Cylinder(n=5, diameter=10*um, length=50*um)
+../_images/cylinder.svg
+Section
+
+# Length and diameter individually defined for each compartment (at start
+# and end)
+Section(n=5, diameter=[15, 5, 10, 5, 10, 5]*um,
+        length=[10, 20, 5, 5, 10]*um)
+../_images/section.svg
+Note
+
+For a Section, the diameter argument specifies the diameter between the compartments (and at the beginning/end of the first/last compartment). the corresponding values can therefore be later retrieved from the Morphology via the start_diameter and end_diameter attributes. The diameter attribute of a Morphology does correspond to the diameter at the midpoint of the compartment. For a Cylinder, start_diameter, diameter, and end_diameter are of course all identical.
+
+The tree structure of a morphology is created by attaching Morphology objects together:
+
+morpho = Soma(diameter=30*um)
+morpho.axon = Cylinder(length=100*um, diameter=1*um, n=10)
+morpho.dendrite = Cylinder(length=50*um, diameter=2*um, n=5)
+These statements create a morphology consisting of a cylindrical axon and a dendrite attached to a spherical soma. Note that the names axon and dendrite are arbitrary and chosen by the user. For example, the same morphology can be created as follows:
+
+morpho = Soma(diameter=30*um)
+morpho.output_process = Cylinder(length=100*um, diameter=1*um, n=10)
+morpho.input_process = Cylinder(length=50*um, diameter=2*um, n=5)
+The syntax is recursive, for example two sections can be added at the end of the dendrite as follows:
+
+morpho.dendrite.branch1 = Cylinder(length=50*um, diameter=1*um, n=3)
+morpho.dendrite.branch2 = Cylinder(length=50*um, diameter=1*um, n=3)
+Equivalently, one can use an indexing syntax:
+
+morpho['dendrite']['branch1'] = Cylinder(length=50*um, diameter=1*um, n=3)
+morpho['dendrite']['branch2'] = Cylinder(length=50*um, diameter=1*um, n=3)
+The names given to sections are completely up to the user. However, names that consist of a single digit (1 to 9) or the letters L (for left) and R (for right) allow for a special short syntax: they can be joined together directly, without the needs for dots (or dictionary syntax) and therefore allow to quickly navigate through the morphology tree (e.g. morpho.LRLLR is equivalent to morpho.L.R.L.L.R). This short syntax can also be used to create trees:
+
+morpho = Soma(diameter=30*um)
+morpho.L = Cylinder(length=10*um, diameter=1*um, n=3)
+morpho.L1 = Cylinder(length=5*um, diameter=1*um, n=3)
+morpho.L2 = Cylinder(length=5*um, diameter=1*um, n=3)
+morpho.L3 = Cylinder(length=5*um, diameter=1*um, n=3)
+morpho.R = Cylinder(length=10*um, diameter=1*um, n=3)
+morpho.RL = Cylinder(length=5*um, diameter=1*um, n=3)
+morpho.RR = Cylinder(length=5*um, diameter=1*um, n=3)
+The above instructions create a dendritic tree with two main sections, three sections attached to the first section and two to the second. This can be verified with the Morphology.topology method:
+
+morpho.topology()  
+( )  [root]
+   `---|  .L
+        `---|  .L.1
+        `---|  .L.2
+        `---|  .L.3
+   `---|  .R
+        `---|  .R.L
+        `---|  .R.R
+Note that an expression such as morpho.L will always refer to the entire subtree. However, accessing the attributes (e.g. diameter) will only return the values for the given section.
+
+Note
+
+To avoid ambiguities, do not use names for sections that can be interpreted in the abbreviated way detailed above. For example, do not name a child section L1 (which will be interpreted as the first child of the child L)
+
+The number of compartments in a section can be accessed with morpho.n (or morpho.L.n, etc.), the number of total sections and compartments in a subtree can be accessed with morpho.total_sections and morpho.total_compartments respectively.
+
+Adding coordinates
+For plotting purposes, it can be useful to add coordinates to a Morphology that was created using the “schematic” approach described above. This can be done by calling the generate_coordinates method on a morphology, which will return an identical morphology but with additional 2D or 3D coordinates. By default, this method creates a morphology according to a deterministic algorithm in 2D:
+
+new_morpho = morpho.generate_coordinates()
+../_images/morphology_deterministic_coords.png
+To get more “realistic” morphologies, this function can also be used to create morphologies in 3D where the orientation of each section differs from the orientation of the parent section by a random amount:
+
+new_morpho = morpho.generate_coordinates(section_randomness=25)
+../_images/morphology_random_section_1.png	../_images/morphology_random_section_2.png	../_images/morphology_random_section_3.png
+This algorithm will base the orientation of each section on the orientation of the parent section and then randomly perturb this orientation. More precisely, the algorithm first chooses a random vector orthogonal to the orientation of the parent section. Then, the section will be rotated around this orthogonal vector by a random angle, drawn from an exponential distribution with the 
+ parameter (in degrees) given by section_randomness. This 
+ parameter specifies both the mean and the standard deviation of the rotation angle. Note that no maximum rotation angle is enforced, values for section_randomness should therefore be reasonably small (e.g. using a section_randomness of 45 would already lead to a probability of ~14% that the section will be rotated by more than 90 degrees, therefore making the section go “backwards”).
+
+In addition, also the orientation of each compartment within a section can be randomly varied:
+
+new_morpho = morpho.generate_coordinates(section_randomness=25,
+                                         compartment_randomness=15)
+../_images/morphology_random_section_compartment_1.png	../_images/morphology_random_section_compartment_2.png	../_images/morphology_random_section_compartment_3.png
+The algorithm is the same as the one presented above, but applied individually to each compartment within a section (still based on the orientation on the parent section, not on the orientation of the previous compartment).
+
+Complex morphologies
+Morphologies can also be created from information about the compartment coordinates in 3D space. Such morphologies can be loaded from a .swc file (a standard format for neuronal morphologies; for a large database of morphologies in this format see http://neuromorpho.org):
+
+morpho = Morphology.from_file('corticalcell.swc')
+To manually create a morphology from a list of points in a similar format to SWC files, see Morphology.from_points.
+
+Morphologies that are created in such a way will use standard names for the sections that allow for the short syntax shown in the previous sections: if a section has one or two child sections, then they will be called L and R, otherwise they will be numbered starting at 1.
+
+Morphologies with coordinates can also be created section by section, following the same syntax as for “schematic” morphologies:
+
+soma = Soma(diameter=30*um, x=50*um, y=20*um)
+cylinder = Cylinder(n=10, x=[0, 100]*um, diameter=1*um)
+section = Section(n=5,
+                  x=[0, 10, 20, 30, 40, 50]*um,
+                  y=[0, 10, 20, 30, 40, 50]*um,
+                  z=[0, 10, 10, 10, 10, 10]*um,
+                  diameter=[6, 5, 4, 3, 2, 1]*um)
+Note that the x, y, z attributes of Morphology and SpatialNeuron will return the coordinates at the midpoint of each compartment (as for all other attributes that vary over the length of a compartment, e.g. diameter or distance), but during construction the coordinates refer to the start and end of the section (Cylinder), respectively to the coordinates of the nodes between the compartments (Section).
+
+A few additional remarks:
+
+In the majority of simulations, coordinates are not used in the neuronal equations, therefore the coordinates are purely for visualization purposes and do not affect the simulation results in any way.
+
+Coordinate specification cannot be combined with length specification – lengths are automatically calculated from the coordinates.
+
+The coordinate specification can also be 1- or 2-dimensional (as in the first two examples above), the unspecified coordinate will use 0 μm.
+
+All coordinates are interpreted relative to the parent compartment, i.e. the point (0 μm, 0 μm, 0 μm) refers to the end point of the previous compartment. Most of the time, the first element of the coordinate specification is therefore 0 μm, to continue a section where the previous one ended. However, it can be convenient to use a value different from 0 μm for sections connecting to the Soma to make them (visually) connect to a point on the sphere surface instead of the center of the sphere.
+
+Creating a spatially extended neuron
+A SpatialNeuron is a spatially extended neuron. It is created by specifying the morphology as a Morphology object, the equations for transmembrane currents, and optionally the specific membrane capacitance Cm and intracellular resistivity Ri:
+
+gL = 1e-4*siemens/cm**2
+EL = -70*mV
+eqs = '''
+Im=gL * (EL - v) : amp/meter**2
+I : amp (point current)
+'''
+neuron = SpatialNeuron(morphology=morpho, model=eqs, Cm=1*uF/cm**2, Ri=100*ohm*cm)
+neuron.v = EL + 10*mV
+Several state variables are created automatically: the SpatialNeuron inherits all the geometrical variables of the compartments (length, diameter, area, volume), as well as the distance variable that gives the distance to the soma. For morphologies that use coordinates, the x, y and z variables are provided as well. Additionally, a state variable Cm is created. It is initialized with the value given at construction, but it can be modified on a compartment per compartment basis (which is useful to model myelinated axons). The membrane potential is stored in state variable v.
+
+Note that for all variable values that vary across a compartment (e.g. distance, x, y, z, v), the value that is reported is the value at the midpoint of the compartment.
+
+The key state variable, which must be specified at construction, is Im. It is the total transmembrane current, expressed in units of current per area. This is a mandatory line in the definition of the model. The rest of the string description may include other state variables (differential equations or subexpressions) or parameters, exactly as in NeuronGroup. At every timestep, Brian integrates the state variables, calculates the transmembrane current at every point on the neuronal morphology, and updates v using the transmembrane current and the diffusion current, which is calculated based on the morphology and the intracellular resistivity. Note that the transmembrane current is a surfacic current, not the total current in the compartment. This choice means that the model equations are independent of the number of compartments chosen for the simulation. The space and time constants can obtained for any point of the neuron with the space_constant respectively time_constant attributes:
+
+l = neuron.space_constant[0]
+tau = neuron.time_constant[0]
+The calculation is based on the local total conductance (not just the leak conductance), therefore, it can potentially vary during a simulation (e.g. decrease during an action potential). The reported value is only correct for compartments with a cylindrical geometry, though, it does not give reasonable values for compartments with strongly varying diameter.
+
+To inject a current I at a particular point (e.g. through an electrode or a synapse), this current must be divided by the area of the compartment when inserted in the transmembrane current equation. This is done automatically when the flag point current is specified, as in the example above. This flag can apply only to subexpressions or parameters with amp units. Internally, the expression of the transmembrane current Im is simply augmented with +I/area. A current can then be injected in the first compartment of the neuron (generally the soma) as follows:
+
+neuron.I[0] = 1*nA
+State variables of the SpatialNeuron include all the compartments of that neuron (including subtrees). Therefore, the statement neuron.v = EL + 10*mV sets the membrane potential of the entire neuron at -60 mV.
+
+Subtrees can be accessed by attribute (in the same way as in Morphology objects):
+
+neuron.axon.gNa = 10*gL
+Note that the state variables correspond to the entire subtree, not just the main section. That is, if the axon had branches, then the above statement would change gNa on the main section and all the sections in the subtree. To access the main section only, use the attribute main:
+
+neuron.axon.main.gNa = 10*gL
+A typical use case is when one wants to change parameter values at the soma only. For example, inserting an electrode current at the soma is done as follows:
+
+neuron.main.I = 1*nA
+A part of a section can be accessed as follows:
+
+initial_segment = neuron.axon[10*um:50*um]
+Finally, similar to the way that you can refer to a subset of neurons of a NeuronGroup, you can also index the SpatialNeuron object itself, e.g. to get a group representing only the first compartment of a cell (typically the soma), you can use:
+
+soma = neuron[0]
+In the same way as for sections, you can also use slices, either with the indices of compartments, or with the distance from the root:
+
+first_compartments = neuron[:3]
+first_compartments = neuron[0*um:30*um]
+However, note that this is restricted to contiguous indices which most of the time means that all compartments indexed in this way have to be part of the same section. Such indices can be acquired directly from the morphology:
+
+axon = neuron[morpho.axon.indices[:]]
+or, more concisely:
+
+axon = neuron[morpho.axon]
+Synaptic inputs
+There are two methods to have synapses on SpatialNeuron. The first one to insert synaptic equations directly in the neuron equations:
+
+eqs='''
+Im = gL * (EL - v) : amp/meter**2
+Is = gs * (Es - v) : amp (point current)
+dgs/dt = -gs/taus : siemens
+'''
+neuron = SpatialNeuron(morphology=morpho, model=eqs, Cm=1*uF/cm**2, Ri=100*ohm*cm)
+Note that, as for electrode stimulation, the synaptic current must be defined as a point current. Then we use a Synapses object to connect a spike source to the neuron:
+
+S = Synapses(stimulation, neuron, on_pre='gs += w')
+S.connect(i=0, j=50)
+S.connect(i=1, j=100)
+This creates two synapses, on compartments 50 and 100. One can specify the compartment number with its spatial position by indexing the morphology:
+
+S.connect(i=0, j=morpho[25*um])
+S.connect(i=1, j=morpho.axon[30*um])
+In this method for creating synapses, there is a single value for the synaptic conductance in any compartment. This means that it will fail if there are several synapses onto the same compartment and synaptic equations are nonlinear. The second method, which works in such cases, is to have synaptic equations in the Synapses object:
+
+eqs='''
+Im = gL * (EL - v) : amp/meter**2
+Is = gs * (Es - v) : amp (point current)
+gs : siemens
+'''
+neuron = SpatialNeuron(morphology=morpho, model=eqs, Cm=1 * uF / cm ** 2, Ri=100 * ohm * cm)
+S = Synapses(stimulation, neuron, model='''dg/dt = -g/taus : siemens
+                                           gs_post = g : siemens (summed)''',
+             on_pre='g += w')
+Here each synapse (instead of each compartment) has an associated value g, and all values of g for each compartment (i.e., all synapses targeting that compartment) are collected into the compartmental variable gs.
+
+Detecting spikes
+To detect and record spikes, we must specify a threshold condition, essentially in the same way as for a NeuronGroup:
+
+neuron = SpatialNeuron(morphology=morpho, model=eqs, threshold='v > 0*mV', refractory='v > -10*mV')
+Here spikes are detected when the membrane potential v reaches 0 mV. Because there is generally no explicit reset in this type of model (although it is possible to specify one), v remains above 0 mV for some time. To avoid detecting spikes during this entire time, we specify a refractory period. In this case no spike is detected as long as v is greater than -10 mV. Another possibility could be:
+
+neuron = SpatialNeuron(morphology=morpho, model=eqs, threshold='m > 0.5', refractory='m > 0.4')
+where m is the state variable for sodium channel activation (assuming this has been defined in the model). Here a spike is detected when half of the sodium channels are open.
+
+With the syntax above, spikes are detected in all compartments of the neuron. To detect them in a single compartment, use the threshold_location keyword:
+
+neuron = SpatialNeuron(morphology=morpho, model=eqs, threshold='m > 0.5', threshold_location=30,
+                       refractory='m > 0.4')
+In this case, spikes are only detecting in compartment number 30. Reset then applies locally to that compartment (if a reset statement is defined). Again the location of the threshold can be specified with spatial position:
+
+neuron = SpatialNeuron(morphology=morpho, model=eqs, threshold='m > 0.5',
+                       threshold_location=morpho.axon[30*um],
+                       refractory='m > 0.4')
+Subgroups
+In the same way that you can refer to a subset of neurons in a NeuronGroup, you can also refer to a subset of compartments in a SpatialNeuron
+
+
+Model equations
+The core of every simulation is a NeuronGroup, a group of neurons that share the same equations defining their properties. The minimum NeuronGroup specification contains the number of neurons and the model description in the form of equations:
+
+G = NeuronGroup(10, 'dv/dt = -v/(10*ms) : volt')
+This defines a group of 10 leaky integrators. The model description can be directly given as a (possibly multi-line) string as above, or as an Equations object. For more details on the form of equations, see Equations. Brian needs the model to be given in the form of differential equations, but you might see the integrated form of synapses in some textbooks and papers. See Converting from integrated form to ODEs for details on how to convert between these representations.
+
+Note that model descriptions can make reference to physical units, but also to scalar variables declared outside of the model description itself:
+
+tau = 10*ms
+G = NeuronGroup(10, 'dv/dt = -v/tau : volt')
+If a variable should be taken as a parameter of the neurons, i.e. if it should be possible to vary its value across neurons, it has to be declared as part of the model description:
+
+G = NeuronGroup(10, '''dv/dt = -v/tau : volt
+                       tau : second''')
+To make complex model descriptions more readable, named subexpressions can be used:
+
+G = NeuronGroup(10, '''dv/dt = I_leak / Cm : volt
+                       I_leak = g_L*(E_L - v) : amp''')
+For a list of some standard model equations, see Neural models (Brian 1 –> 2 conversion).
+
+Noise
+In addition to ordinary differential equations, Brian allows you to introduce random noise by specifying a stochastic differential equation. Brian uses the physicists’ notation used in the Langevin equation, representing the “noise” as a term 
+, rather than the mathematicians’ stochastic differential 
+. The following is an example of the Ornstein-Uhlenbeck process that is often used to model a leaky integrate-and-fire neuron with a stochastic current:
+
+G = NeuronGroup(10, 'dv/dt = -v/tau + sigma*sqrt(2/tau)*xi : volt')
+You can start by thinking of xi as just a Gaussian random variable with mean 0 and standard deviation 1. However, it scales in an unusual way with time and this gives it units of 1/sqrt(second). You don’t necessarily need to understand why this is, but it is possible to get a reasonably simple intuition for it by thinking about numerical integration: see below.
+
+Note
+
+If you want to use noise in more than one equation of a NeuronGroup or Synapses, you will have to use suffixed names (see Equation strings for details).
+
+Threshold and reset
+To emit spikes, neurons need a threshold. Threshold and reset are given as strings in the NeuronGroup constructor:
+
+tau = 10*ms
+G = NeuronGroup(10, 'dv/dt = -v/tau : volt', threshold='v > -50*mV',
+                reset='v = -70*mV')
+Whenever the threshold condition is fulfilled, the reset statements will be executed. Again, both threshold and reset can refer to physical units, external variables and parameters, in the same way as model descriptions:
+
+v_r = -70*mV  # reset potential
+G = NeuronGroup(10, '''dv/dt = -v/tau : volt
+                       v_th : volt  # neuron-specific threshold''',
+                threshold='v > v_th', reset='v = v_r')
+You can also create non-spike events. See Custom events for more details.
+
+Refractoriness
+To make a neuron non-excitable for a certain time period after a spike, the refractory keyword can be used:
+
+G = NeuronGroup(10, 'dv/dt = -v/tau : volt', threshold='v > -50*mV',
+                reset='v = -70*mV', refractory=5*ms)
+This will not allow any threshold crossing for a neuron for 5ms after a spike. The refractory keyword allows for more flexible refractoriness specifications, see Refractoriness for details.
+
+State variables
+Differential equations and parameters in model descriptions are stored as state variables of the NeuronGroup. In addition to these variables, Brian also defines two variables automatically:
+
+i
+The index of a neuron.
+
+N
+The total number of neurons.
+
+All state variables can be accessed and set as an attribute of the group. To get the values without physical units (e.g. for analysing data with external tools), use an underscore after the name:
+
+G = NeuronGroup(10, '''dv/dt = -v/tau : volt
+                       tau : second''', name='neurons')
+G.v = -70*mV
+G.v
+<neurons.v: array([-70., -70., -70., -70., -70., -70., -70., -70., -70., -70.]) * mvolt>
+G.v_  # values without units
+<neurons.v_: array([-0.07, -0.07, -0.07, -0.07, -0.07, -0.07, -0.07, -0.07, -0.07, -0.07])>
+The value of state variables can also be set using string expressions that can refer to units and external variables, other state variables or mathematical functions:
+
+G.tau = '5*ms + (1.0*i/N)*5*ms'
+G.tau
+<neurons.tau: array([ 5. ,  5.5,  6. ,  6.5,  7. ,  7.5,  8. ,  8.5,  9. ,  9.5]) * msecond>
+You can also set the value only if a condition holds, for example:
+
+G.v['tau>7.25*ms'] = -60*mV
+G.v
+<neurons.v: array([-70., -70., -70., -70., -70., -60., -60., -60., -60., -60.]) * mvolt>
+Subgroups
+It is often useful to refer to a subset of neurons, this can be achieved using Python’s slicing syntax:
+
+G = NeuronGroup(10, '''dv/dt = -v/tau : volt
+                       tau : second''',
+                threshold='v > -50*mV',
+                reset='v = -70*mV')
+# Create subgroups
+G1 = G[:5]
+G2 = G[5:]
+
+# This will set the values in the main group, subgroups are just "views"
+G1.tau = 10*ms
+G2.tau = 20*ms
+Here G1 refers to the first 5 neurons in G, and G2 to the second 5 neurons. In general G[i:j] refers to the neurons with indices from i to j-1, as in general in Python.
+
+For convenience, you can also use a single index, i.e. G[i] is equivalent to G[i:i+1]. In some situations, it can be easier to provide a list of indices instead of a slice, Brian therefore also allows for this syntax. Note that this is restricted to cases that are strictly equivalent with slicing syntax, e.g. you can write G[[3, 4, 5]] instead of G[3:6], but you cannot write G[[3, 5, 7]] or G[[5, 4, 3]].
+
+Subgroups can be used in most places where regular groups are used, e.g. their state variables or spiking activity can be recorded using monitors, they can be connected via Synapses, etc. In such situations, indices (e.g. the indices of the neurons to record from in a StateMonitor) are relative to the subgroup, not to the main group
+
+The following topics are not essential for beginners.
+
+
+Shared variables
+Sometimes it can also be useful to introduce shared variables or subexpressions, i.e. variables that have a common value for all neurons. In contrast to external variables (such as Cm above), such variables can change during a run, e.g. by using run_regularly(). This can be for example used for an external stimulus that changes in the course of a run:
+
+G = NeuronGroup(10, '''shared_input : volt (shared)
+                       dv/dt = (-v + shared_input)/tau : volt
+                       tau : second''', name='neurons')
+Note that there are several restrictions around the use of shared variables: they cannot be written to in contexts where statements apply only to a subset of neurons (e.g. reset statements, see below). If a code block mixes statements writing to shared and vector variables, then the shared statements have to come first.
+
+By default, subexpressions are re-evaluated whenever they are used, i.e. using a subexpression is completely equivalent to substituting it. Sometimes it is useful to instead only evaluate a subexpression once and then use this value for the rest of the time step. This can be achieved by using the (constant over dt) flag. This flag is mandatory for subexpressions that refer to stateful functions like rand() which notably allows them to be recorded with a StateMonitor – otherwise the monitor would record a different instance of the random number than the one that was used in the equations.
+
+For shared variables, setting by string expressions can only refer to shared values:
+
+G.shared_input = '(4.0/N)*mV'
+G.shared_input
+<neurons.shared_input: 0.4 * mvolt>
+Storing state variables
+Sometimes it can be convenient to access multiple state variables at once, e.g. to set initial values from a dictionary of values or to store all the values of a group on disk. This can be done with the get_states() and set_states() methods:
+
+group = NeuronGroup(5, '''dv/dt = -v/tau : 1
+                          tau : second''', name='neurons')
+initial_values = {'v': [0, 1, 2, 3, 4],
+                  'tau': [10, 20, 10, 20, 10]*ms}
+group.set_states(initial_values)
+group.v[:]
+array([ 0.,  1.,  2.,  3.,  4.])
+group.tau[:]
+array([ 10.,  20.,  10.,  20.,  10.]) * msecond
+states = group.get_states()
+states['v']
+array([ 0.,  1.,  2.,  3.,  4.])
+The data (without physical units) can also be exported/imported to/from Pandas data frames (needs an installation of pandas):
+
+df = group.get_states(units=False, format='pandas')  
+df  
+   N      dt  i    t   tau    v
+0  5  0.0001  0  0.0  0.01  0.0
+1  5  0.0001  1  0.0  0.02  1.0
+2  5  0.0001  2  0.0  0.01  2.0
+3  5  0.0001  3  0.0  0.02  3.0
+4  5  0.0001  4  0.0  0.01  4.0
+df['tau']  
+0    0.01
+1    0.02
+2    0.01
+3    0.02
+4    0.01
+Name: tau, dtype: float64
+df['tau'] *= 2  
+group.set_states(df[['tau']], units=False, format='pandas')  
+group.tau  
+<neurons.tau: array([ 20.,  40.,  20.,  40.,  20.]) * msecond>
+Linked variables
+A NeuronGroup can define parameters that are not stored in this group, but are instead a reference to a state variable in another group. For this, a group defines a parameter as linked and then uses linked_var() to specify the linking. This can for example be useful to model shared noise between cells:
+
+inp = NeuronGroup(1, 'dnoise/dt = -noise/tau + tau**-0.5*xi : 1')
+
+neurons = NeuronGroup(100, '''noise : 1 (linked)
+                              dv/dt = (-v + noise_strength*noise)/tau : volt''')
+neurons.noise = linked_var(inp, 'noise')
+If the two groups have the same size, the linking will be done in a 1-to-1 fashion. If the source group has the size one (as in the above example) or if the source parameter is a shared variable, then the linking will be done as 1-to-all. In all other cases, you have to specify the indices to use for the linking explicitly:
+
+# two inputs with different phases
+inp = NeuronGroup(2, '''phase : 1
+                        dx/dt = 1*mV/ms*sin(2*pi*100*Hz*t-phase) : volt''')
+inp.phase = [0, pi/2]
+
+neurons = NeuronGroup(100, '''inp : volt (linked)
+                              dv/dt = (-v + inp) / tau : volt''')
+# Half of the cells get the first input, other half gets the second
+neurons.inp = linked_var(inp, 'x', index=repeat([0, 1], 50))
+Time scaling of noise
+Suppose we just had the differential equation
+
+
+To solve this numerically, we could compute
+
+
+where 
+ is a normally distributed random number with mean 0 and standard deviation 1. However, what happens if we change the time step? Suppose we used a value of 
+ instead of 
+. Now, we compute
+
+
+The mean value of 
+ is 0 in both cases, but the standard deviations are different. The first method 
+ gives 
+ a standard deviation of 1, whereas the second method 
+ gives 
+ a variance of 1+1=2 and therefore a standard deviation of 
+.
+
+In order to solve this problem, we use the rule 
+, which makes the mean and standard deviation of the value at time 
+ independent of 
+. For this to make sense dimensionally, 
+ must have units of 1/sqrt(second).
+
+For further details, refer to a textbook on stochastic differential equations.
